@@ -66,6 +66,118 @@ plt.ylabel("Unidades de P2")
 plt.legend()
 st.pyplot(fig)
 
+
+
+# Función para sumar dos matrices CSR manuales
+def csr_add(csr_a, csr_b):
+    # Verificar que las matrices tengan el mismo tamaño
+    if csr_a.row_ptr[-1] != csr_b.row_ptr[-1] or len(csr_a.col_indices) != len(csr_b.col_indices):
+        raise ValueError("Las matrices deben tener el mismo tamaño para la suma.")
+
+    # Inicializar la matriz resultante
+    result_values = []
+    result_col_indices = []
+    result_row_ptr = [0]
+
+    # Sumar las matrices
+    for i in range(len(csr_a.row_ptr) - 1):
+        start_a = csr_a.row_ptr[i]
+        end_a = csr_a.row_ptr[i + 1]
+        start_b = csr_b.row_ptr[i]
+        end_b = csr_b.row_ptr[i + 1]
+
+        # Combinar las columnas de ambas matrices
+        cols_a = csr_a.col_indices[start_a:end_a]
+        cols_b = csr_b.col_indices[start_b:end_b]
+        all_cols = sorted(set(cols_a + cols_b))
+
+        # Sumar los valores correspondientes
+        row_values = []
+        row_cols = []
+        for col in all_cols:
+            value_a = csr_a.values[start_a + cols_a.index(col)] if col in cols_a else 0
+            value_b = csr_b.values[start_b + cols_b.index(col)] if col in cols_b else 0
+            row_values.append(value_a + value_b)
+            row_cols.append(col)
+
+        result_values.extend(row_values)
+        result_col_indices.extend(row_cols)
+        result_row_ptr.append(result_row_ptr[-1] + len(row_values))
+
+    return result_values, result_col_indices, result_row_ptr
+
+# Función para multiplicar dos matrices CSR manuales
+def csr_multiply(csr_a, csr_b):
+    # Verificar que las matrices sean compatibles para la multiplicación
+    if csr_a.row_ptr[-1] != csr_b.row_ptr[-1]:
+        raise ValueError("Las matrices no son compatibles para la multiplicación.")
+
+    # Inicializar la matriz resultante
+    result_values = []
+    result_col_indices = []
+    result_row_ptr = [0]
+
+    # Multiplicar las matrices
+    for i in range(len(csr_a.row_ptr) - 1):
+        start_a = csr_a.row_ptr[i]
+        end_a = csr_a.row_ptr[i + 1]
+        row_values = []
+        row_cols = []
+
+        for j in range(len(csr_b.row_ptr) - 1):
+            start_b = csr_b.row_ptr[j]
+            end_b = csr_b.row_ptr[j + 1]
+
+            # Calcular el producto punto entre la fila i de A y la columna j de B
+            dot_product = 0
+            ptr_a = start_a
+            ptr_b = start_b
+            while ptr_a < end_a and ptr_b < end_b:
+                if csr_a.col_indices[ptr_a] == csr_b.col_indices[ptr_b]:
+                    dot_product += csr_a.values[ptr_a] * csr_b.values[ptr_b]
+                    ptr_a += 1
+                    ptr_b += 1
+                elif csr_a.col_indices[ptr_a] < csr_b.col_indices[ptr_b]:
+                    ptr_a += 1
+                else:
+                    ptr_b += 1
+
+            if dot_product != 0:
+                row_values.append(dot_product)
+                row_cols.append(j)
+
+        result_values.extend(row_values)
+        result_col_indices.extend(row_cols)
+        result_row_ptr.append(result_row_ptr[-1] + len(row_values))
+
+    return result_values, result_col_indices, result_row_ptr
+
+# Clase para representar una matriz CSR manual
+class SparseMatrixCSR:
+    def __init__(self, matrix):
+        self.values = []
+        self.col_indices = []
+        self.row_ptr = [0]
+
+        for row in matrix:
+            non_zero_count = 0
+            for j, value in enumerate(row):
+                if value != 0:
+                    self.values.append(value)
+                    self.col_indices.append(j)
+                    non_zero_count += 1
+            self.row_ptr.append(self.row_ptr[-1] + non_zero_count)
+
+    def to_dense(self, shape):
+        dense_matrix = np.zeros(shape)
+        for i in range(len(self.row_ptr) - 1):
+            start = self.row_ptr[i]
+            end = self.row_ptr[i + 1]
+            for j in range(start, end):
+                col_index = self.col_indices[j]
+                dense_matrix[i][col_index] = self.values[j]
+        return dense_matrix
+
 # Generar una matriz dispersa aleatoria
 def generate_sparse_matrix(size, density=0.1):
     matrix = np.random.choice([0, 1], size=(size, size), p=[1 - density, density]) * np.random.randint(1, 10, size=(size, size))
@@ -99,31 +211,6 @@ if method == "Matriz Densa":
     matrix_a = matrix
     matrix_b = matrix  # Usamos la misma matriz para la operación
 elif method == "CSR Manual":
-    class SparseMatrixCSR:
-        def __init__(self, matrix):
-            self.values = []
-            self.col_indices = []
-            self.row_ptr = [0]
-
-            for row in matrix:
-                non_zero_count = 0
-                for j, value in enumerate(row):
-                    if value != 0:
-                        self.values.append(value)
-                        self.col_indices.append(j)
-                        non_zero_count += 1
-                self.row_ptr.append(self.row_ptr[-1] + non_zero_count)
-
-        def to_dense(self, shape):
-            dense_matrix = np.zeros(shape)
-            for i in range(len(self.row_ptr) - 1):
-                start = self.row_ptr[i]
-                end = self.row_ptr[i + 1]
-                for j in range(start, end):
-                    col_index = self.col_indices[j]
-                    dense_matrix[i][col_index] = self.values[j]
-            return dense_matrix
-
     sparse_manual = SparseMatrixCSR(matrix)
     matrix_a = sparse_manual
     matrix_b = sparse_manual  # Usamos la misma matriz para la operación
@@ -139,36 +226,33 @@ elif method == "SciPy CSC":
 
 # Realizar la operación seleccionada
 if st.button("Realizar operación"):
-    if operation == "Suma":
-        if method == "Matriz Densa":
-            result, time_op = measure_time(np.add, matrix_a, matrix_b)
-        elif method == "CSR Manual":
-            dense_a = matrix_a.to_dense(matrix.shape)
-            dense_b = matrix_b.to_dense(matrix.shape)
-            result, time_op = measure_time(np.add, dense_a, dense_b)
-        elif method == "SciPy CSR":
-            result, time_op = measure_time(sp.csr_matrix.__add__, matrix_a, matrix_b)
-        elif method == "SciPy COO":
-            result, time_op = measure_time(sp.coo_matrix.__add__, matrix_a, matrix_b)
-        elif method == "SciPy CSC":
-            result, time_op = measure_time(sp.csc_matrix.__add__, matrix_a, matrix_b)
-    elif operation == "Multiplicación":
-        if method == "Matriz Densa":
-            result, time_op = measure_time(np.dot, matrix_a, matrix_b)
-        elif method == "CSR Manual":
-            dense_a = matrix_a.to_dense(matrix.shape)
-            dense_b = matrix_b.to_dense(matrix.shape)
-            result, time_op = measure_time(np.dot, dense_a, dense_b)
-        elif method == "SciPy CSR":
-            result, time_op = measure_time(sp.csr_matrix.dot, matrix_a, matrix_b)
-        elif method == "SciPy COO":
-            result, time_op = measure_time(sp.coo_matrix.dot, matrix_a, matrix_b)
-        elif method == "SciPy CSC":
-            result, time_op = measure_time(sp.csc_matrix.dot, matrix_a, matrix_b)
+    if method == "CSR Manual":
+        if operation == "Suma":
+            _, time_op = measure_time(csr_add, matrix_a, matrix_b)
+        elif operation == "Multiplicación":
+            _, time_op = measure_time(csr_multiply, matrix_a, matrix_b)
+        st.write(f"Tiempo de operación ({operation} con {method}): {time_op:.6f} segundos")
+    else:
+        if operation == "Suma":
+            if method == "Matriz Densa":
+                result, time_op = measure_time(np.add, matrix_a, matrix_b)
+            elif method == "SciPy CSR":
+                result, time_op = measure_time(sp.csr_matrix.__add__, matrix_a, matrix_b)
+            elif method == "SciPy COO":
+                result, time_op = measure_time(sp.coo_matrix.__add__, matrix_a, matrix_b)
+            elif method == "SciPy CSC":
+                result, time_op = measure_time(sp.csc_matrix.__add__, matrix_a, matrix_b)
+        elif operation == "Multiplicación":
+            if method == "Matriz Densa":
+                result, time_op = measure_time(np.dot, matrix_a, matrix_b)
+            elif method == "SciPy CSR":
+                result, time_op = measure_time(sp.csr_matrix.dot, matrix_a, matrix_b)
+            elif method == "SciPy COO":
+                result, time_op = measure_time(sp.coo_matrix.dot, matrix_a, matrix_b)
+            elif method == "SciPy CSC":
+                result, time_op = measure_time(sp.csc_matrix.dot, matrix_a, matrix_b)
 
-    st.write(f"Tiempo de operación ({operation} con {method}): {time_op:.6f} segundos")
-
-
+        st.write(f"Tiempo de operación ({operation} con {method}): {time_op:.6f} segundos")
 
 
 def taylor_series(func, x0, n, x):
