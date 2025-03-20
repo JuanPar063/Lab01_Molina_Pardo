@@ -255,7 +255,7 @@ def newton_method(x0, tol=1e-5, max_iter=50):
 
     return x_new, len(history), history
 
-# 🔹 Gradiente Descendente
+# Gradiente Descendente
 def gradient_descent(x0, alpha=0.1, tol=1e-5, max_iter=100):
     x = x0
     history = [x]
@@ -270,7 +270,7 @@ def gradient_descent(x0, alpha=0.1, tol=1e-5, max_iter=100):
 
     return x_new, len(history), history
 
-# 🔹 Búsqueda Unidireccional
+# Búsqueda Unidireccional
 def unidirectional_search(x0, step=0.1, tol=1e-5):
     x = x0
     history = [x]
@@ -287,7 +287,7 @@ def unidirectional_search(x0, step=0.1, tol=1e-5):
 
     return x, len(history), history
 
-# 🔹 Interfaz Streamlit
+#  Interfaz Streamlit
 st.title("Comparación de Métodos de Optimización")
 
 # Muestra la función utilizada
@@ -311,12 +311,12 @@ elif method == "Búsqueda Unidireccional":
 else:
     result = newton_method(x0)
 
-# 🔹 Desplegar resultados
+# Desplegar resultados
 x_min, iters, history = result
 st.write(f"🔹 **Mínimo encontrado en:** {x_min:.5f}")
 st.write(f"🔹 **Iteraciones realizadas:** {iters}")
 
-# 🔹 Gráfico
+# Gráfico
 x_vals = np.linspace(-6, 6, 100)
 y_vals = f(x_vals)
 
