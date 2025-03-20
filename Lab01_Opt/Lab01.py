@@ -5,55 +5,64 @@ import scipy.sparse as sp
 import sympy as spy
 import time
 
-# Función de costo: y(x) = (50 + x)(300 - 3x)
-def cost_function(x):
-    return (50 + x) * (300 - 3 * x)
+# Función de beneficio: Z = 10x + 15y
+def profit_function(x, y):
+    return 10 * x + 15 * y
 
 # Interfaz Streamlit
-st.title("Optimización de una variable")
+st.title("Optimización de la Producción de la Fábrica")
 
 # Agregar el texto después del título
 st.write(
     """
-   El rendimiento promedio en una finca es de 300 manzanas por árbol si se plantan 50 manzanos por acre.
-   El rendimiento por árbol disminuye en 3 manzanas por cada árbol adicional plantado por acre. ¿Cuántos
-   árboles adicionales por acre se deben plantar para maximizar el rendimiento? Formule esto como un problema 
-   de optimización.
+    Una fábrica produce dos tipos de productos, P1 y P2. Cada unidad de P1 requiere 2 horas de
+    trabajo y 1 kg de material, mientras que cada unidad de P2 requiere 1 hora de trabajo y 2 kg de
+    material. La fábrica tiene disponibles 40 horas de trabajo y 30 kg de material al día. Si el beneficio
+    por unidad de P1 es de 10 y por unidad de P2 es de 15, ¿cuántas unidades de cada producto deben
+    producirse para maximizar el beneficio?
     """
 )
 
-# Entrada para el punto x
-x_input = st.number_input("Ingrese x (cantidad de árboles a plantar)", value=1.0)
+# Entrada para las unidades de P1 y P2
+x_input = st.number_input("Ingrese x (unidades de P1)", value=0.0)
+y_input = st.number_input("Ingrese y (unidades de P2)", value=0.0)
 
-# Entrada para los límites inferior y superior
-lower_bound = st.number_input("Límite inferior", value=0.0)
-upper_bound = st.number_input("Límite superior", value=100.0)
+# Entrada para las restricciones
+st.write("### Restricciones")
+work_hours = st.number_input("Horas de trabajo disponibles", value=40.0)
+material_kg = st.number_input("Kg de material disponibles", value=30.0)
 
-# Verificación de factibilidad
-def is_feasible(x, lower, upper):
-    return lower <= x <= upper
+# Restricciones
+def is_feasible(x, y, work_hours, material_kg):
+    return (2 * x + y <= work_hours) and (x + 2 * y <= material_kg) and (x >= 0) and (y >= 0)
 
-# Cálculo del valor de la función de costo
-if is_feasible(x_input, lower_bound, upper_bound):
-    cost = cost_function(x_input)
-    st.write(f"Valor de la función de costo: {cost}")
+# Cálculo del valor de la función de beneficio
+if is_feasible(x_input, y_input, work_hours, material_kg):
+    profit = profit_function(x_input, y_input)
+    st.write(f"Valor de la función de beneficio: {profit}")
 else:
     st.write("El punto no cumple con las restricciones")
 
 # Generación de la región factible
-x = np.linspace(0, 100, 100)
-y = cost_function(x)
+x = np.linspace(0, 20, 100)
+y = np.linspace(0, 20, 100)
+X, Y = np.meshgrid(x, y)
+Z = profit_function(X, Y)
 
-# Filtrar valores factibles
-feasible_mask = (x >= lower_bound) & (x <= upper_bound)
+# Restricciones
+constraint1 = 2 * X + Y <= work_hours
+constraint2 = X + 2 * Y <= material_kg
+feasible_mask = constraint1 & constraint2 & (X >= 0) & (Y >= 0)
 
 # Graficar
 fig, ax = plt.subplots()
-ax.plot(x, y, label="y(x) = (50 + x)(300 - 3x)")
-ax.fill_between(x, y, where=feasible_mask, color='lightgreen', alpha=0.5, label="Región factible")
-plt.plot(x_input, cost_function(x_input), 'ro', label=f"Punto ({x_input}, {cost_function(x_input)})")
-plt.xlabel("Cantidad de árboles")
-plt.ylabel("Cantidad de manzanas")
+# ax.contourf(X, Y, Z, levels=50, cmap='viridis')  # Eliminar o comentar esta línea
+ax.plot(x, (work_hours - 2 * x), label=f"2x + y ≤ {work_hours} (horas de trabajo)")
+ax.plot(x, (material_kg - x) / 2, label=f"x + 2y ≤ {material_kg} (material)")
+ax.fill_between(x, 0, np.minimum((work_hours - 2 * x), (material_kg - x) / 2), where=(x >= 0), color='lightgreen', alpha=0.5, label="Región factible")
+plt.plot(x_input, y_input, 'ro', label=f"Punto ({x_input}, {y_input})")
+plt.xlabel("Unidades de P1")
+plt.ylabel("Unidades de P2")
 plt.legend()
 st.pyplot(fig)
 
@@ -158,6 +167,7 @@ if st.button("Realizar operación"):
             result, time_op = measure_time(sp.csc_matrix.dot, matrix_a, matrix_b)
 
     st.write(f"Tiempo de operación ({operation} con {method}): {time_op:.6f} segundos")
+
 
 
 
